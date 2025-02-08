@@ -38,9 +38,6 @@ firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://smart-baby-nest-default-rtdb.asia-southeast1.firebasedatabase.app/'  # URL الخاص بقاعدة البيانات
 })
 
- 
-# مرجع Firebase للإطارات
-# frames_ref = db.reference('/live_stream/frames')
 
 class AudioProcessor():
     cry_prediction = ""
@@ -92,12 +89,13 @@ def upload_sensor_data():
     data = request.json
     temperature = data.get('temperature')
     humidity = data.get('humidity')
-
+    print("The Temperature from Raspberry Pi")
     # التحقق من أن جميع البيانات موجودة
     if None in (temperature, humidity):
         return jsonify({"error": "Missing data"}), 400
   
     #DC Motor: {dc_motor}, Servo Motor: {servo_motor}, 
+    print("The Temperature and Humidity are received from Raspberry Pi")
     print(f"Temperature: {temperature} °C, Humidity: {humidity} %")
 
     # تخزين البيانات في Firebase Realtime Database
@@ -119,21 +117,10 @@ def upload_frame():
     frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
     child_detected = detect_child(frame)
     
-    # _, buffer = cv2.imencode('.jpg', frame)
-    # base64_image = base64.b64encode(buffer).decode('utf-8')
-
-    # # تخزين الفريم في Firebase Realtime Database
-    # ref = db.reference('/frames')  # المسار في قاعدة البيانات
-    # frame_data = {
-    #     'image': base64_image,
-    #     'timestamp': time.time()  # إضافة التوقيت لكل فريم
-    # }
-    # ref.push(frame_data)  # إضافة البيانات الجديدة إلى قاعدة البيانات
-
-    # print("Frame uploaded to Firebase Realtime Database")
+    print("Frame Recieved from Raspberry Pi")
 
     # # كشف وجود الطفل
-    # child_detected = detect_child(frame)
+    child_detected = detect_child(frame)
     
     return jsonify({"child_detected": child_detected})
 
@@ -142,7 +129,7 @@ def detect_child(frame):
     for box in results[0].boxes:
         cls = box.cls
         conf = box.conf
-        if int(cls[0]) == 67 and conf[0] > 0.70:
+        if int(cls[0]) == 67 and conf[0] > 0.50:
             return True
     return False
 
