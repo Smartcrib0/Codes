@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import numpy as np
 import cv2
 from ultralytics import YOLO
@@ -110,11 +110,15 @@ def upload_sensor_data():
     return jsonify({"status": "success"}), 200
 
 
+last_frame = None
+
 @app_video.route('/upload_frame', methods=['POST'])
 def upload_frame():
+    global last_frame
     file = request.files['frame']
     np_img = np.frombuffer(file.read(), np.uint8)
     frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+    last_frame = frame  # حفظ آخر فريم مستلم
     child_detected = detect_child(frame)
     
     print("Frame Recieved from Raspberry Pi")
@@ -132,6 +136,22 @@ def detect_child(frame):
         if int(cls[0]) == 67 and conf[0] > 0.50:
             return True
     return False
+
+# دالة لعرض الفيديو المستمر عبر السيرفر
+@app_video.route('/video_feed')
+def video_feed():
+    def generate():
+        global last_frame
+        while True:
+            if last_frame is not None:
+                # تحويل الفريم إلى صورة قابلة للعرض عبر الإنترنت
+                ret, jpeg = cv2.imencode('.jpg', last_frame)
+                if ret:
+                    # إرسال الصورة عبر HTTP كـ JPEG
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
+            time.sleep(0.1)  # تقليل الضغط على الخادم
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app_audio.route('/analyze_audio', methods=['POST'])
 def upload_audio():
